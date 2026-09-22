@@ -824,6 +824,153 @@ public class PotentialScanner {
         });
     }
 
+    public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory, double maxStopLossPercent) {
+
+        minuteHistory.forEach((symbol, minuteCandles) -> {
+            if(symbol.equals("SYRMA"))
+            {
+                List<MinuteCandle> candles = new ArrayList<>(minuteCandles);
+                List<Candle5Min> candles5mins =  calculate5MinEmaAndVwap(candles);
+                print5MinCandles(candles5mins);
+
+            }
+
+        });
+    }
+    public static void print5MinCandles(List<Candle5Min> candles) {
+
+        System.out.printf(
+                "%-10s %-8s %-8s %-8s %-8s %-10s %-10s %-10s%n",
+                "Time", "Open", "High", "Low", "Close",
+                "Volume", "EMA9", "VWAP"
+        );
+
+        for (Candle5Min c : candles) {
+
+            System.out.printf(
+                    "%-10s %-8.2f %-8.2f %-8.2f %-8.2f %-10.0f %-10.2f %-10.2f%n",
+                    c.getTime().toLocalTime().toString().substring(0, 5),
+                    c.getOpen(),
+                    c.getHigh(),
+                    c.getLow(),
+                    c.getClose(),
+                    c.getVolume(),
+                    c.getEma9(),
+                    c.getVwap()
+            );
+        }
+    }
+
+    public static List<Candle5Min> calculate5MinEmaAndVwap(
+            List<MinuteCandle> minuteCandles) {
+
+        // 1. Group minute candles into 5-minute buckets
+        Map<LocalDateTime, List<MinuteCandle>> grouped =
+                minuteCandles.stream()
+                        .collect(Collectors.groupingBy(
+                                c -> c.getTime()
+                                        .withMinute((c.getTime().getMinute() / 5) * 5)
+                                        .withSecond(0)
+                                        .withNano(0),
+                                TreeMap::new,
+                                Collectors.toList()
+                        ));
+
+        List<Candle5Min> result = new ArrayList<>();
+
+        double ema9 = 0.0;
+        double cumulativePV = 0.0;
+        double cumulativeVolume = 0.0;
+
+        LocalDate currentDate = null;
+
+        // EMA9 alpha
+        double alpha = 2.0 / (9.0 + 1.0);   // 0.2
+
+        for (Map.Entry<LocalDateTime, List<MinuteCandle>> entry : grouped.entrySet()) {
+
+            LocalDateTime bucketTime = entry.getKey();
+            List<MinuteCandle> candles = entry.getValue();
+
+            candles.sort(Comparator.comparing(MinuteCandle::getTime));
+
+            // Reset VWAP and EMA at new trading day
+            if (!bucketTime.toLocalDate().equals(currentDate)) {
+                currentDate = bucketTime.toLocalDate();
+
+                cumulativePV = 0.0;
+                cumulativeVolume = 0.0;
+
+                ema9 = 0.0;
+            }
+
+            // -----------------------------
+            // Build 5-minute candle
+            // -----------------------------
+
+            double open = candles.get(0).getOpen();
+
+            double high = candles.stream()
+                    .mapToDouble(MinuteCandle::getHigh)
+                    .max()
+                    .orElse(open);
+
+            double low = candles.stream()
+                    .mapToDouble(MinuteCandle::getLow)
+                    .min()
+                    .orElse(open);
+
+            double close = candles.get(candles.size() - 1).getClose();
+
+            double volume = candles.stream()
+                    .mapToDouble(MinuteCandle::getVolume)
+                    .sum();
+
+            // -----------------------------
+            // EMA 9
+            // -----------------------------
+
+            if (ema9 == 0.0) {
+                ema9 = close;
+            } else {
+                ema9 = (close * alpha) + (ema9 * (1.0 - alpha));
+            }
+
+            // -----------------------------
+            // VWAP
+            // Typical price = (H + L + C) / 3
+            // -----------------------------
+
+            double typicalPrice = (high + low + close) / 3.0;
+
+            cumulativePV += typicalPrice * volume;
+            cumulativeVolume += volume;
+
+            double vwap = cumulativeVolume > 0
+                    ? cumulativePV / cumulativeVolume
+                    : close;
+
+            // -----------------------------
+            // Result
+            // -----------------------------
+
+            Candle5Min candle = new Candle5Min();
+
+            candle.setTime(bucketTime);
+            candle.setOpen(open);
+            candle.setHigh(high);
+            candle.setLow(low);
+            candle.setClose(close);
+            candle.setVolume(volume);
+            candle.setEma9(ema9);
+            candle.setVwap(vwap);
+
+            result.add(candle);
+        }
+
+        return result;
+    }
+
     public static void getCalculationPrevDayHighBreak(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory, double crossPercent, double targetPercent, double maxStopLossPercent) {
 
 
