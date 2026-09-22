@@ -2227,12 +2227,12 @@ public class RealtimeMomentumEngine {
                         changeText = "⚪ 0.00%";
                     }
 
-                    TelegramAlertService.send(
+                   /* TelegramAlertService.send(
                         c0.time + " " + symbol
                             + " prev close=" + prevDayClose
                             + " curr close=" + currentClose
                             + " change=" + changeText
-                    );
+                    );*/
                     System.out.println(c0.time + " " + symbol
                         + " prev close=" + prevDayClose
                         + " curr close=" + currentClose

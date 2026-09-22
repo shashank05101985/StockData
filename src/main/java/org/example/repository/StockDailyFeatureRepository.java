@@ -297,7 +297,7 @@ public class StockDailyFeatureRepository {
          *
          * 3 * days is generally enough for weekends/holidays.
          */
-        LocalDate fromDate = date.minusDays(days * 3L);
+        LocalDate fromDate = date.minusDays(days);
 
         String sql = """
             WITH ranked AS (

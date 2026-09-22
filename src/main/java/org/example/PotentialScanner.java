@@ -38,7 +38,7 @@ public class PotentialScanner {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private static final String API_KEY = "8311x4p8tm56j4vc";
-    private static final String ACCESS_TOKEN = "mSyOul0u16FdCsbdiHcSwDAZc5osd6i4";
+    private static final String ACCESS_TOKEN = "qk3AsBx5r6LER7WIBizIdGjhJcZD5HK0";
 
     private static Set<String> symbols = new HashSet<>();
 
@@ -68,10 +68,9 @@ public class PotentialScanner {
         kite.setAccessToken(ACCESS_TOKEN);
         // Map<String, StockMomentum> gapUpSymbolClosePriceMap = getMomentumMap();
         Set<String> symbols = TokenUtils.getTokens();
-        int days = 3;
         //symbols.addAll(gapUpSymbolClosePriceMap.keySet());
         Map<String, PreviousDayData> previousDayDataMap = StockDailyFeatureRepository.loadPreviousDayClose(
-                LocalDate.now().minusDays(days), DB.get(), 2);
+                LocalDate.now(), DB.get(), 1);
         previousDayDataMap.keySet().forEach(st -> {
             PreviousDayData d = previousDayDataMap.get(st);
             if (d.getClosePrice() > 50 || d.getClosePrice() < 3000)
@@ -80,7 +79,7 @@ public class PotentialScanner {
         Map<String, StockDailyFeature> stockDailyFeatureMap = StockDailyFeatureRepository.loadCurrentDailyFeatures(
                 DB.get(), previousDayDataMap.keySet());
         ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory = DataLoader.loadMinuteHistory(DB.get(),
-                LocalDate.now().minusDays(days), LocalTime.of(9, 15), LocalTime.of(15, 10));
+                LocalDate.now(), LocalTime.of(9, 15), LocalTime.of(15, 10));
 
         RealtimeMomentumEngine.setPreDayMap(previousDayDataMap, minuteHistory, stockDailyFeatureMap,
                 fundamentalDataMap);
@@ -88,8 +87,8 @@ public class PotentialScanner {
 
 
         // getCalculationStrongBuy(stockDailyFeatureMap, previousDayDataMap, fundamentalDataMap, minuteHistory, 1.5);
-        getCalculationPrevDayHighBreak(stockDailyFeatureMap, previousDayDataMap, fundamentalDataMap, minuteHistory, 2, 3, 3);
-        System.out.println("totalProfit " + totalProfit);
+        //getCalculationPrevDayHighBreak(stockDailyFeatureMap, previousDayDataMap, fundamentalDataMap, minuteHistory, 2, 3, 3);
+        /*System.out.println("totalProfit " + totalProfit);
 
         if (openPositions.isEmpty()) {
             System.out.println("No open positions.");
@@ -131,7 +130,7 @@ public class PotentialScanner {
         System.out.println(
                 "TOTAL UNREALIZED P&L = "
                         + String.format("%.2f", totalUnrealizedProfit)
-        );
+        );*/
         /*minuteHistory.keySet().forEach(key->{
                 BreakoutProbabilityNew.BreakoutProbabilityResult result = BreakoutProbabilityNew.calculateBreakoutProbability(minuteHistory.get(key), 1);
                 if(result.bias.equals("BULLISH") && result.bullishPercentage>80)

@@ -10,10 +10,9 @@ import java.util.Map;
 
 public class TelegramAlertService {
 
-    private static final String BOT_TOKEN = "8520143920:AAECmxc2IbE8Excjd48gMnCYBf6gf1Ef_cg";
-    private static final String CHAT_ID = "1852301057";
+    private static final String BOT_TOKEN = "8995517464:AAG0UF9ScVDqOZGBoCyGDJWPnzCnKg4uHGU";
+    private static final String CHAT_ID = "-5294729567";
     private static final RestTemplate restTemplate = new RestTemplate();
-
 
     public static void send(String message) {
         try {
