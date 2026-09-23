@@ -4,7 +4,6 @@ package org.example;
 import com.zerodhatech.kiteconnect.KiteConnect;
 import com.zerodhatech.kiteconnect.kitehttp.exceptions.KiteException;
 import com.zerodhatech.models.Instrument;
-import com.zerodhatech.models.Order;
 import org.example.live.*;
 import org.example.loader.DB;
 import org.example.loader.DataLoader;
@@ -14,7 +13,6 @@ import org.example.repository.StockDailyFeatureRepository;
 import org.example.service.TelegramAlertService;
 import org.example.util.*;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.util.CollectionUtils;
 
 import java.sql.SQLException;
 import java.time.*;
@@ -24,8 +22,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static org.example.util.StockScoreUtil.scoreStock;
 
 public class PotentialScanner {
 
@@ -38,7 +34,7 @@ public class PotentialScanner {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private static final String API_KEY = "8311x4p8tm56j4vc";
-    private static final String ACCESS_TOKEN = "qk3AsBx5r6LER7WIBizIdGjhJcZD5HK0";
+    private static final String ACCESS_TOKEN = "jvq4LGCNB29gcelc4yMTpI9YyJREJ6Ln";
 
     private static Set<String> symbols = new HashSet<>();
 
@@ -56,10 +52,13 @@ public class PotentialScanner {
 
         //startMinuteScanner();
         //startGapUpScanner();
-        //Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
+        Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
         //startTopGainerLoserScheduler(fundamentalDataMap);
         //startScanner(fundamentalDataMap);
-        startEMAandVWAPScheduler();
+        Map<String, PreviousDayData> previousDayDataMap = StockDailyFeatureRepository.loadPreviousDayClose(
+                LocalDate.now(), DB.get(), 1);
+
+        startEMAandVWAPScheduler(previousDayDataMap, fundamentalDataMap);
 
 
     }
@@ -264,7 +263,7 @@ public class PotentialScanner {
         }, 0, 5, TimeUnit.MINUTES);
     }
 
-    public static void startEMAandVWAPScheduler() {
+    public static void startEMAandVWAPScheduler(Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap) {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
         scheduler.scheduleAtFixedRate(() -> {
@@ -277,17 +276,19 @@ public class PotentialScanner {
                 if(LocalTime.now().isAfter(MARKET_CLOSE))
                     System.exit(0);
 
+                //Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
+
                 ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory = DataLoader.loadMinuteHistory(DB.get(),
                         LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 30));
 
-                calculateEMAandVWAP(null, null, null, minuteHistory, 1.5);
+                calculateEMAandVWAP(null, previousDayDataMap, fundamentalDataMap, minuteHistory, 1.5);
 
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-        }, 0, 5, TimeUnit.MINUTES);
+        }, 0, 3, TimeUnit.MINUTES);
     }
 
     public static void getCalculationStrongBuy(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory, double maxStopLossPercent) {
@@ -851,22 +852,101 @@ public class PotentialScanner {
         });
     }
 
+    private static boolean isPriceContinuouslyIncreasing(List<CandleNMin> candles, int numberOfCandles) {
+
+        if (candles == null || candles.size() < numberOfCandles) {
+            return false;
+        }
+
+        int startIndex = candles.size() - numberOfCandles;
+
+        for (int i = startIndex + 1; i < candles.size(); i++) {
+
+            double previousPrice = candles.get(i - 1).getClose();
+            double currentPrice = candles.get(i).getClose();
+
+            if (currentPrice <= previousPrice) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory, double maxStopLossPercent) {
+
+        List<Map.Entry<String, CandleNMin>> results = new ArrayList<>();
 
         minuteHistory.forEach((symbol, minuteCandles) -> {
 
                 List<MinuteCandle> candles = new ArrayList<>(minuteCandles);
-                List<Candle5Min> candles5mins =  calculate5MinEmaAndVwap(candles);
+                List<CandleNMin> candleNMins =  calculateTimeBasedEmaAndVwap(candles,3);
                 //print5MinCandles(candles5mins);
-                Candle5Min candle = candles5mins.getLast();
-                if(candle.getClose() > candle.getEma9() && candle.getClose() > candle.getVwap()){
-                    System.out.println(symbol + " " + candle.toString());
+                CandleNMin candle = candleNMins.getLast();
+                double stockPrice = candle.getClose();
+                FundamentalData stockFundamental = fundamentalDataMap.get(symbol);
+                PreviousDayData previousDayData = previousDayDataMap.get(symbol);
+                if (previousDayData == null) {
+                    return;
+                }
+
+                double stockClosePrice = previousDayData.getClosePrice();
+                double percentageChange = 0.0;
+
+                if (stockClosePrice > 0) {
+                    percentageChange = ((stockPrice - stockClosePrice) / stockClosePrice) * 100.0;
+                }
+                if(stockPrice > candle.getEma9() && stockPrice > candle.getVwap() && stockPrice > 500 && stockPrice < 2500 &&  (stockFundamental != null && stockFundamental.getMarketCap() > 1500) && candle.getCumulativeVolume() > 100000 && percentageChange > 2.0){
+                    //System.out.println(symbol + " " + candle.toString());
+                    //results.add(Map.entry(symbol, candle));
+                    boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins,5);
+
+                    if (continuouslyIncreasing) {
+                        results.add(
+                                Map.entry(symbol, candle)
+                        );
+                    }
                 }
 
 
         });
+
+        results.sort(
+                Comparator.comparingDouble(
+                        (Map.Entry<String, CandleNMin> entry) -> {
+                            double currentPrice = entry.getValue().getClose();
+                            double previousClose = previousDayDataMap.get(entry.getKey()).getClosePrice();
+                            return ((currentPrice - previousClose) / previousClose) * 100.0;
+                        }
+                ).reversed()
+        );
+
+        // Print results
+        results.forEach(entry -> {
+
+            String symbol = entry.getKey();
+            CandleNMin candle = entry.getValue();
+            PreviousDayData previousDayData = previousDayDataMap.get(symbol);
+
+            double stockPrice = candle.getClose();
+            double previousClose = previousDayData.getClosePrice();
+
+            double percentageChange =
+                    ((stockPrice - previousClose) / previousClose) * 100.0;
+
+            System.out.println(
+                    symbol
+                            + " ------ Price: " + candle.getClose()
+                            + " ------ Percentage Change: " + String.format("%.2f", percentageChange) + "%"
+                            + " ------ EMA9: " + candle.getEma9()
+                            + " ------ VWAP: " + candle.getVwap()
+                            + " ------ Volume: " + candle.getCumulativeVolume()
+            );
+        });
     }
-    public static void print5MinCandles(List<Candle5Min> candles) {
+
+
+    public static void print5MinCandles(List<CandleNMin> candles) {
 
         System.out.printf(
                 "%-10s %-8s %-8s %-8s %-8s %-10s %-10s %-10s%n",
@@ -874,7 +954,7 @@ public class PotentialScanner {
                 "Volume", "EMA9", "VWAP"
         );
 
-        for (Candle5Min c : candles) {
+        for (CandleNMin c : candles) {
 
             System.out.printf(
                     "%-10s %-8.2f %-8.2f %-8.2f %-8.2f %-10.0f %-10.2f %-10.2f%n",
@@ -890,22 +970,22 @@ public class PotentialScanner {
         }
     }
 
-    public static List<Candle5Min> calculate5MinEmaAndVwap(
-            List<MinuteCandle> minuteCandles) {
+    public static List<CandleNMin> calculateTimeBasedEmaAndVwap(
+            List<MinuteCandle> minuteCandles,int minutes) {
 
         // 1. Group minute candles into 5-minute buckets
         Map<LocalDateTime, List<MinuteCandle>> grouped =
                 minuteCandles.stream()
                         .collect(Collectors.groupingBy(
                                 c -> c.getTime()
-                                        .withMinute((c.getTime().getMinute() / 5) * 5)
+                                        .withMinute((c.getTime().getMinute() / minutes) * minutes)
                                         .withSecond(0)
                                         .withNano(0),
                                 TreeMap::new,
                                 Collectors.toList()
                         ));
 
-        List<Candle5Min> result = new ArrayList<>();
+        List<CandleNMin> result = new ArrayList<>();
 
         double ema9 = 0.0;
         double cumulativePV = 0.0;
@@ -983,7 +1063,7 @@ public class PotentialScanner {
             // Result
             // -----------------------------
 
-            Candle5Min candle = new Candle5Min();
+            CandleNMin candle = new CandleNMin();
 
             candle.setTime(bucketTime);
             candle.setOpen(open);
@@ -993,6 +1073,8 @@ public class PotentialScanner {
             candle.setVolume(volume);
             candle.setEma9(ema9);
             candle.setVwap(vwap);
+            candle.setCumulativeVolume(cumulativeVolume);
+
 
             result.add(candle);
         }

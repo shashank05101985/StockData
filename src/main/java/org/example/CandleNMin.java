@@ -2,7 +2,7 @@ package org.example;
 
 import java.time.LocalDateTime;
 
-public class Candle5Min {
+public class CandleNMin {
 
     private LocalDateTime time;
 
@@ -19,11 +19,12 @@ public class Candle5Min {
     private double buyQty;
     private double sellQty;
     private double buySellRatio;
+    private double cumulativeVolume;
 
-    public Candle5Min() {
+    public CandleNMin() {
     }
 
-    public Candle5Min(
+    public CandleNMin(
             LocalDateTime time,
             double open,
             double high,
@@ -34,7 +35,8 @@ public class Candle5Min {
             double vwap,
             double buyQty,
             double sellQty,
-            double buySellRatio) {
+            double buySellRatio,
+            double cumulativeVolume) {
 
         this.time = time;
         this.open = open;
@@ -47,6 +49,7 @@ public class Candle5Min {
         this.buyQty = buyQty;
         this.sellQty = sellQty;
         this.buySellRatio = buySellRatio;
+        this.cumulativeVolume = cumulativeVolume;
     }
 
     public LocalDateTime getTime() {
@@ -137,6 +140,14 @@ public class Candle5Min {
         this.buySellRatio = buySellRatio;
     }
 
+    public double getCumulativeVolume() {
+        return cumulativeVolume;
+    }
+
+    public void setCumulativeVolume(double cumulativeVolume) {
+        this.cumulativeVolume = cumulativeVolume;
+    }
+
     @Override
     public String toString() {
         return "Candle5Min{" +
@@ -151,6 +162,7 @@ public class Candle5Min {
                 ", buyQty=" + buyQty +
                 ", sellQty=" + sellQty +
                 ", buySellRatio=" + buySellRatio +
+                ", cumulativeVolume=" + cumulativeVolume +
                 '}';
     }
 }
