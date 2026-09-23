@@ -8,7 +8,7 @@ public class DB {
 
     private static final String URL =
             "jdbc:postgresql://localhost:5432/stockdb";
-    private static final String USER = "shashankmishra";
+    private static final String USER = "mayank";
     private static final String PASS = "password";
 
     private static Connection conn;

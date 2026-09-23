@@ -56,9 +56,10 @@ public class PotentialScanner {
 
         //startMinuteScanner();
         //startGapUpScanner();
-        Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
+        //Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
         //startTopGainerLoserScheduler(fundamentalDataMap);
-        startScanner(fundamentalDataMap);
+        //startScanner(fundamentalDataMap);
+        startEMAandVWAPScheduler();
 
 
     }
@@ -70,7 +71,7 @@ public class PotentialScanner {
         Set<String> symbols = TokenUtils.getTokens();
         //symbols.addAll(gapUpSymbolClosePriceMap.keySet());
         Map<String, PreviousDayData> previousDayDataMap = StockDailyFeatureRepository.loadPreviousDayClose(
-                LocalDate.now(), DB.get(), 1);
+                LocalDate.now().minusDays(1), DB.get(), 1);
         previousDayDataMap.keySet().forEach(st -> {
             PreviousDayData d = previousDayDataMap.get(st);
             if (d.getClosePrice() > 50 || d.getClosePrice() < 3000)
@@ -79,13 +80,13 @@ public class PotentialScanner {
         Map<String, StockDailyFeature> stockDailyFeatureMap = StockDailyFeatureRepository.loadCurrentDailyFeatures(
                 DB.get(), previousDayDataMap.keySet());
         ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory = DataLoader.loadMinuteHistory(DB.get(),
-                LocalDate.now(), LocalTime.of(9, 15), LocalTime.of(15, 10));
+                LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 30));
 
         RealtimeMomentumEngine.setPreDayMap(previousDayDataMap, minuteHistory, stockDailyFeatureMap,
                 fundamentalDataMap);
-         LiveTickerWeb.startWebSocket(kite, symbols);
+         //LiveTickerWeb.startWebSocket(kite, symbols);
 
-
+        calculateEMAandVWAP(stockDailyFeatureMap, previousDayDataMap, fundamentalDataMap, minuteHistory, 1.5);
         // getCalculationStrongBuy(stockDailyFeatureMap, previousDayDataMap, fundamentalDataMap, minuteHistory, 1.5);
         //getCalculationPrevDayHighBreak(stockDailyFeatureMap, previousDayDataMap, fundamentalDataMap, minuteHistory, 2, 3, 3);
         /*System.out.println("totalProfit " + totalProfit);
@@ -254,6 +255,32 @@ public class PotentialScanner {
                     }
                 }
                 TelegramAlertService.send(telegramMsgFivrMinGainer.toString());
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }, 0, 5, TimeUnit.MINUTES);
+    }
+
+    public static void startEMAandVWAPScheduler() {
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        scheduler.scheduleAtFixedRate(() -> {
+
+            try {
+
+                LocalDate date = LocalDate.now();
+                LocalTime currentTime = LocalTime.now();
+
+                if(LocalTime.now().isAfter(MARKET_CLOSE))
+                    System.exit(0);
+
+                ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory = DataLoader.loadMinuteHistory(DB.get(),
+                        LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 30));
+
+                calculateEMAandVWAP(null, null, null, minuteHistory, 1.5);
 
 
             } catch (Exception e) {
@@ -827,13 +854,15 @@ public class PotentialScanner {
     public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory, double maxStopLossPercent) {
 
         minuteHistory.forEach((symbol, minuteCandles) -> {
-            if(symbol.equals("SYRMA"))
-            {
+
                 List<MinuteCandle> candles = new ArrayList<>(minuteCandles);
                 List<Candle5Min> candles5mins =  calculate5MinEmaAndVwap(candles);
-                print5MinCandles(candles5mins);
+                //print5MinCandles(candles5mins);
+                Candle5Min candle = candles5mins.getLast();
+                if(candle.getClose() > candle.getEma9() && candle.getClose() > candle.getVwap()){
+                    System.out.println(symbol + " " + candle.toString());
+                }
 
-            }
 
         });
     }

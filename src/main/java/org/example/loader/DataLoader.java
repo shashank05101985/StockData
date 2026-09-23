@@ -130,7 +130,6 @@ public class DataLoader {
             range,
             price_change,
             price_velocity,
-            created_at,
             start_tick_time,
             last_tick_time
         FROM minute_candle
@@ -227,6 +226,218 @@ public class DataLoader {
                 + startTime
                 + " -> "
                 + endTime
+        );
+
+        return minuteHistory;
+    }
+
+    public static ConcurrentHashMap<String, Deque<MinuteCandle>> loadMinuteHistory(
+            Connection conn,
+            LocalDate previousTradingDate,
+            LocalDate tradeDate,
+            LocalTime previousStartTime,
+            LocalTime previousEndTime,
+            LocalTime currentStartTime,
+            LocalTime currentEndTime) throws SQLException {
+
+        String sql = """
+        SELECT
+            symbol,
+            time,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            tick_count,
+            last_quantity,
+            day_average_price,
+            total_buy_qty,
+            total_sell_qty,
+            buy_sell_ratio,
+            oi,
+            oi_high,
+            oi_low,
+            change_percent,
+            body,
+            upper_wick,
+            lower_wick,
+            range,
+            price_change,
+            price_velocity,
+            start_tick_time,
+            last_tick_time
+        FROM minute_candle
+        WHERE
+            (
+                (time AT TIME ZONE 'Asia/Kolkata')::date = ?
+                AND (time AT TIME ZONE 'Asia/Kolkata')::time >= ?
+                AND (time AT TIME ZONE 'Asia/Kolkata')::time <= ?
+            )
+            OR
+            (
+                (time AT TIME ZONE 'Asia/Kolkata')::date = ?
+                AND (time AT TIME ZONE 'Asia/Kolkata')::time >= ?
+                AND (time AT TIME ZONE 'Asia/Kolkata')::time <= ?
+            )
+        ORDER BY symbol, time
+        """;
+
+        ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory =
+                new ConcurrentHashMap<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            /*
+             * Previous trading day
+             */
+            ps.setObject(1, previousTradingDate);
+            ps.setObject(2, previousStartTime);
+            ps.setObject(3, previousEndTime);
+
+            /*
+             * Current trading day
+             */
+            ps.setObject(4, tradeDate);
+            ps.setObject(5, currentStartTime);
+            ps.setObject(6, currentEndTime);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+
+                    String symbol = rs.getString("symbol");
+
+                    MinuteCandle candle = new MinuteCandle();
+
+                    candle.setSymbol(symbol);
+
+                    /*
+                     * PostgreSQL `time` is assumed to be TIMESTAMPTZ.
+                     *
+                     * Convert the timestamp into Asia/Kolkata explicitly.
+                     */
+                    candle.setTime(
+                            rs.getTimestamp("time")
+                                    .toInstant()
+                                    .atZone(ZoneId.of("Asia/Kolkata"))
+                                    .toLocalDateTime()
+                    );
+
+                    candle.setOpen(
+                            rs.getDouble("open_price")
+                    );
+
+                    candle.setHigh(
+                            rs.getDouble("high_price")
+                    );
+
+                    candle.setLow(
+                            rs.getDouble("low_price")
+                    );
+
+                    candle.setClose(
+                            rs.getDouble("close_price")
+                    );
+
+                    candle.setVolume(
+                            rs.getLong("volume")
+                    );
+
+                    candle.setTickCount(
+                            rs.getInt("tick_count")
+                    );
+
+                    candle.setLastQuantity(
+                            rs.getLong("last_quantity")
+                    );
+
+                    candle.setDayAveragePrice(
+                            rs.getDouble("day_average_price")
+                    );
+
+                    candle.setTotalBuyQty(
+                            rs.getLong("total_buy_qty")
+                    );
+
+                    candle.setTotalSellQty(
+                            rs.getLong("total_sell_qty")
+                    );
+
+                    candle.setBuySellRatio(
+                            rs.getDouble("buy_sell_ratio")
+                    );
+
+                    candle.setOi(
+                            rs.getLong("oi")
+                    );
+
+                    candle.setOiHigh(
+                            rs.getLong("oi_high")
+                    );
+
+                    candle.setOiLow(
+                            rs.getLong("oi_low")
+                    );
+
+                    candle.setChange(
+                            rs.getDouble("change_percent")
+                    );
+
+                    candle.setBody(
+                            rs.getDouble("body")
+                    );
+
+                    candle.setUpperWick(
+                            rs.getDouble("upper_wick")
+                    );
+
+                    candle.setLowerWick(
+                            rs.getDouble("lower_wick")
+                    );
+
+                    candle.setRange(
+                            rs.getDouble("range")
+                    );
+
+                    candle.setPriceChange(
+                            rs.getDouble("price_change")
+                    );
+
+                    candle.setPriceVelocity(
+                            rs.getDouble("price_velocity")
+                    );
+
+                    /*
+                     * Add candle to symbol history.
+                     */
+                    Deque<MinuteCandle> history =
+                            minuteHistory.computeIfAbsent(
+                                    symbol,
+                                    k -> new ArrayDeque<>(800)
+                            );
+
+                    history.addLast(candle);
+                }
+            }
+        }
+
+        System.out.println(
+                "Loaded minute history"
+                        + " | Previous Day: "
+                        + previousTradingDate
+                        + " "
+                        + previousStartTime
+                        + " -> "
+                        + previousEndTime
+                        + " | Current Day: "
+                        + tradeDate
+                        + " "
+                        + currentStartTime
+                        + " -> "
+                        + currentEndTime
+                        + " | Symbols: "
+                        + minuteHistory.size()
         );
 
         return minuteHistory;
