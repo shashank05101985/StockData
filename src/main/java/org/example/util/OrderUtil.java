@@ -10,7 +10,12 @@ import java.io.IOException;
 
 public class OrderUtil {
 
-    public static void placeBuyOrder(KiteConnect kiteConnect, String symbol, double price, int quantity) {
+    static final String API_KEY = "8311x4p8tm56j4vc";
+    static final String ACCESS_TOKEN = "C69NHmiqUf3qCtQdP80UEPAd1MjSwBpv";
+
+    public static void placeBuyOrder(String symbol, double price, int quantity) {
+        KiteConnect kite = new KiteConnect(API_KEY);
+        kite.setAccessToken(ACCESS_TOKEN);
         /** Place order method requires a orderParams argument which contains,
          * tradingsymbol, exchange, transaction_type, order_type, quantity, product, price, trigger_price, disclosed_quantity, validity
          * squareoff_value, stoploss_value, trailing_stoploss
@@ -33,7 +38,7 @@ public class OrderUtil {
             orderParams.triggerPrice = 0.0;
             orderParams.marketProtection = 2;
             orderParams.tag = "myTag"; //tag is optional and it cannot be more than 8 characters and only alphanumeric is allowed
-            Order order = kiteConnect.placeOrder(orderParams, Constants.VARIETY_REGULAR);
+            Order order = kite.placeOrder(orderParams, Constants.VARIETY_REGULAR);
             System.out.println(order.orderId);
         } catch (Exception | KiteException e) {
             System.out.println("========== ORDER ERROR ==========");
@@ -44,7 +49,7 @@ public class OrderUtil {
             e.printStackTrace();
         }
     }
-    public static void placeSellOrder(KiteConnect kiteConnect, String symbol, double price, int quantity) {
+    public static void placeSellOrder(String symbol, double price, int quantity) {
         /** Place order method requires a orderParams argument which contains,
          * tradingsymbol, exchange, transaction_type, order_type, quantity, product, price, trigger_price, disclosed_quantity, validity
          * squareoff_value, stoploss_value, trailing_stoploss
@@ -54,6 +59,8 @@ public class OrderUtil {
          * Following is an example param for LIMIT order,
          * if a call fails then KiteException will have error message in it
          * Success of this call implies only order has been placed successfully, not order execution. */
+        KiteConnect kite = new KiteConnect(API_KEY);
+        kite.setAccessToken(ACCESS_TOKEN);
         try {
             OrderParams orderParams = new OrderParams();
             orderParams.quantity = quantity;
@@ -67,7 +74,7 @@ public class OrderUtil {
             orderParams.triggerPrice = 0.0;
             orderParams.marketProtection = 2;
             orderParams.tag = "myTag"; //tag is optional and it cannot be more than 8 characters and only alphanumeric is allowed
-            Order order = kiteConnect.placeOrder(orderParams, Constants.VARIETY_REGULAR);
+            Order order = kite.placeOrder(orderParams, Constants.VARIETY_REGULAR);
             System.out.println(order.orderId);
         } catch (Exception | KiteException e) {
             System.out.println("========== ORDER ERROR ==========");
@@ -77,13 +84,5 @@ public class OrderUtil {
 
             e.printStackTrace();
         }
-    }
-
-    static void main() {
-        final String API_KEY = "8311x4p8tm56j4vc";
-        final String ACCESS_TOKEN = "C69NHmiqUf3qCtQdP80UEPAd1MjSwBpv";
-        KiteConnect kite = new KiteConnect(API_KEY);
-        kite.setAccessToken(ACCESS_TOKEN);
-        placeSellOrder(kite,"IFCI",110.5,50);
     }
 }
