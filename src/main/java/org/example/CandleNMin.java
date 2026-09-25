@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 public class CandleNMin {
 
     private LocalDateTime time;
-
+    private String symbol;
     private double open;
     private double high;
     private double low;
@@ -28,6 +28,7 @@ public class CandleNMin {
 
     public CandleNMin(
             LocalDateTime time,
+            String symbol,
             double open,
             double high,
             double low,
@@ -41,6 +42,7 @@ public class CandleNMin {
             double cumulativeVolume) {
 
         this.time = time;
+        this.symbol = symbol;
         this.open = open;
         this.high = high;
         this.low = low;
@@ -166,10 +168,19 @@ public class CandleNMin {
         this.lastDayHigh = lastDayHigh;
     }
 
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public void setSymbol(String symbol) {
+        this.symbol = symbol;
+    }
+
     @Override
     public String toString() {
         return "Candle5Min{" +
                 "time=" + time +
+                "symbol=" + symbol +
                 ", open=" + open +
                 ", high=" + high +
                 ", low=" + low +
