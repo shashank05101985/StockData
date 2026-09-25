@@ -103,12 +103,16 @@ public class BackTest {
             }
 
             double stockClosePrice = previousDayData.getClosePrice();
+            double stockLastDayHigh = previousDayData.getHighPrice();
             double percentageChange = 0.0;
 
             if (stockClosePrice > 0) {
                 percentageChange = ((stockPrice - stockClosePrice) / stockClosePrice) * 100.0;
             }
-            if (stockPrice > candle.getEma9() && stockPrice > candle.getVwap() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500) && candle.getCumulativeVolume() > 100000 && percentageChange > 2.0) {
+
+            candle.setPercentageChange(percentageChange);
+            candle.setLastDayHigh(stockLastDayHigh);
+            if (stockPrice > candle.getEma9() && stockPrice > candle.getVwap() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500) && candle.getCumulativeVolume() > 100000 && percentageChange > 2.0 && stockPrice > stockLastDayHigh) {
                 //System.out.println(symbol + " " + candle.toString());
                 //results.add(Map.entry(symbol, candle));
                 boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins, 3);
@@ -140,18 +144,13 @@ public class BackTest {
 
             String symbol = entry.getKey();
             CandleNMin candle = entry.getValue();
-            PreviousDayData previousDayData = previousDayDataMap.get(symbol);
 
-            double stockPrice = candle.getClose();
-            double previousClose = previousDayData.getClosePrice();
-
-            double percentageChange =
-                    ((stockPrice - previousClose) / previousClose) * 100.0;
 
             System.out.println(
                     symbol
+                            + " ------ Last Day Price: " + candle.getLastDayHigh()
                             + " ------ Price: " + candle.getClose()
-                            + " ------ Percentage Change: " + String.format("%.2f", percentageChange) + "%"
+                            + " ------ Percentage Change: " + String.format("%.2f", candle.getPercentageChange()) + "%"
                             + " ------ EMA9: " + candle.getEma9()
                             + " ------ VWAP: " + candle.getVwap()
                             + " ------ Volume: " + candle.getCumulativeVolume()

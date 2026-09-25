@@ -20,6 +20,8 @@ public class CandleNMin {
     private double sellQty;
     private double buySellRatio;
     private double cumulativeVolume;
+    private double percentageChange;
+    private double lastDayHigh;
 
     public CandleNMin() {
     }
@@ -146,6 +148,22 @@ public class CandleNMin {
 
     public void setCumulativeVolume(double cumulativeVolume) {
         this.cumulativeVolume = cumulativeVolume;
+    }
+
+    public double getPercentageChange() {
+        return percentageChange;
+    }
+
+    public void setPercentageChange(double percentageChange) {
+        this.percentageChange = percentageChange;
+    }
+
+    public double getLastDayHigh() {
+        return lastDayHigh;
+    }
+
+    public void setLastDayHigh(double lastDayHigh) {
+        this.lastDayHigh = lastDayHigh;
     }
 
     @Override
