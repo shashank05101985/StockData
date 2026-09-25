@@ -16,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -34,7 +35,7 @@ public class PotentialScanner {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private static final String API_KEY = "8311x4p8tm56j4vc";
-    private static final String ACCESS_TOKEN = "jvq4LGCNB29gcelc4yMTpI9YyJREJ6Ln";
+    private static final String ACCESS_TOKEN = "LToUk6c2AfK9bxDjQbvEaD79Rh38YmWj";
 
     private static Set<String> symbols = new HashSet<>();
 
@@ -79,7 +80,7 @@ public class PotentialScanner {
         Map<String, StockDailyFeature> stockDailyFeatureMap = StockDailyFeatureRepository.loadCurrentDailyFeatures(
                 DB.get(), previousDayDataMap.keySet());
         ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory = DataLoader.loadMinuteHistory(DB.get(),
-                LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 30));
+                LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 10));
 
         RealtimeMomentumEngine.setPreDayMap(previousDayDataMap, minuteHistory, stockDailyFeatureMap,
                 fundamentalDataMap);
@@ -279,7 +280,7 @@ public class PotentialScanner {
                 //Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
 
                 ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory = DataLoader.loadMinuteHistory(DB.get(),
-                        LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 30));
+                        LocalDate.now().minusDays(1),LocalDate.now(), LocalTime.of(15, 10), LocalTime.of(15, 30), LocalTime.of(9, 15), LocalTime.of(15, 10));
 
                 calculateEMAandVWAP(null, previousDayDataMap, fundamentalDataMap, minuteHistory, 1.5);
 
@@ -899,7 +900,7 @@ public class PotentialScanner {
                 if(stockPrice > candle.getEma9() && stockPrice > candle.getVwap() && stockPrice > 500 && stockPrice < 2500 &&  (stockFundamental != null && stockFundamental.getMarketCap() > 1500) && candle.getCumulativeVolume() > 100000 && percentageChange > 2.0){
                     //System.out.println(symbol + " " + candle.toString());
                     //results.add(Map.entry(symbol, candle));
-                    boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins,5);
+                    boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins,3);
 
                     if (continuouslyIncreasing) {
                         results.add(
@@ -922,6 +923,8 @@ public class PotentialScanner {
         );
 
         // Print results
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        System.out.println("Scanned at : " + LocalDateTime.now().format(formatter));
         results.forEach(entry -> {
 
             String symbol = entry.getKey();
