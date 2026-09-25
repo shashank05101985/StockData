@@ -44,8 +44,7 @@ public class BackTest {
                         1
                 );
 
-        scheduler.scheduleAtFixedRate(() -> {
-
+        while (true) {
             try {
 
                 LocalTime currentEndTime = endTime.get();
@@ -83,8 +82,7 @@ public class BackTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
-        }, 0, 3, TimeUnit.MINUTES);
+        }
     }
 
     public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, ConcurrentHashMap<String, Deque<MinuteCandle>> minuteHistory, double maxStopLossPercent) {
