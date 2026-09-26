@@ -3749,7 +3749,7 @@ public class PotentialScanner {
         return result;
     }
 
-    static class Position {
+    public static class Position {
 
         String symbol;
         double entryPrice;
@@ -3758,9 +3758,11 @@ public class PotentialScanner {
         double capital;
         double highestProfit = 0.0;
         boolean trailingActive = false;
+        double closePrice = 0.0;
+        double highPrice = 0.0;
 
 
-        Position(
+        public Position(
                 String symbol,
                 double entryPrice,
                 int quantity,
@@ -3773,8 +3775,80 @@ public class PotentialScanner {
             this.entryTime = entryTime;
         }
 
-        double profit(double currentPrice) {
+        public double profit(double currentPrice) {
             return (currentPrice - entryPrice) * quantity;
+        }
+
+        public String getSymbol() {
+            return symbol;
+        }
+
+        public void setSymbol(String symbol) {
+            this.symbol = symbol;
+        }
+
+        public double getEntryPrice() {
+            return entryPrice;
+        }
+
+        public void setEntryPrice(double entryPrice) {
+            this.entryPrice = entryPrice;
+        }
+
+        public int getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(int quantity) {
+            this.quantity = quantity;
+        }
+
+        public LocalDateTime getEntryTime() {
+            return entryTime;
+        }
+
+        public void setEntryTime(LocalDateTime entryTime) {
+            this.entryTime = entryTime;
+        }
+
+        public double getCapital() {
+            return capital;
+        }
+
+        public void setCapital(double capital) {
+            this.capital = capital;
+        }
+
+        public double getHighestProfit() {
+            return highestProfit;
+        }
+
+        public void setHighestProfit(double highestProfit) {
+            this.highestProfit = highestProfit;
+        }
+
+        public boolean isTrailingActive() {
+            return trailingActive;
+        }
+
+        public void setTrailingActive(boolean trailingActive) {
+            this.trailingActive = trailingActive;
+        }
+
+        public double getClosePrice() {
+            return closePrice;
+        }
+
+        public void setClosePrice(double closePrice) {
+            this.closePrice = closePrice;
+        }
+
+        public double getHighPrice() {
+            return highPrice;
+        }
+
+        public void setHighPrice(double highPrice) {
+            this.highPrice = highPrice;
         }
     }
 
