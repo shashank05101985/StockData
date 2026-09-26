@@ -227,7 +227,7 @@ public class StockDailyFeatureRepository {
             connection = DB.get();
         }
 
-        LocalDate targetDate = date.minusDays(1);
+        LocalDate targetDate = date;
 
         String sql = """
             SELECT DISTINCT ON (symbol)
@@ -236,7 +236,8 @@ public class StockDailyFeatureRepository {
                    high_price,
                    traded_qty,
                    delivery_percent,
-                   low_price
+                   low_price,
+                   open_price
             FROM stock_data
             WHERE date = ?
             ORDER BY symbol, date DESC
@@ -263,9 +264,10 @@ public class StockDailyFeatureRepository {
                     double deliveryPct = rs.getDouble("delivery_percent");
 
                     double lowPrice = rs.getDouble("low_price");
+                    double openPrice = rs.getDouble("open_price");
 
                     previousDayMap.put(symbol,
-                        new PreviousDayData(closePrice, tradedQty, highPrice, deliveryPct, lowPrice
+                        new PreviousDayData(closePrice, tradedQty, highPrice, deliveryPct, lowPrice,openPrice
 
                         ));
                 }
@@ -287,9 +289,6 @@ public class StockDailyFeatureRepository {
             connection = DB.get();
         }
 
-        if (days <= 0) {
-            throw new IllegalArgumentException("days must be > 0");
-        }
 
         /*
          * We use a larger calendar window because we want
@@ -307,6 +306,7 @@ public class StockDailyFeatureRepository {
                     high_price,
                     low_price,
                     close_price,
+                    open_price,
                     traded_qty,
                     delivery_percent,
             
@@ -334,7 +334,7 @@ public class StockDailyFeatureRepository {
             
                 MAX(close_price) AS max_close,
                 MIN(close_price) AS min_close,
-            
+                MAX(open_price) AS max_open,
                 COUNT(*) AS trading_days
             
             FROM ranked
@@ -382,8 +382,10 @@ public class StockDailyFeatureRepository {
 
                     int tradingDays = rs.getInt("trading_days");
 
+                    double maxOpen =  rs.getDouble("max_open");
+
                     previousDayMap.put(symbol,
-                        new PreviousDayData(maxClose, avgTradedQty, maxHigh, avgDeliveryPct, minLow));
+                        new PreviousDayData(maxClose, avgTradedQty, maxHigh, avgDeliveryPct, minLow,maxOpen));
 
                     if (symbol.equals("ITDC") || symbol.equals("TCS")) {
 
