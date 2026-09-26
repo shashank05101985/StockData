@@ -57,4 +57,12 @@ public class PreviousDayData {
     public void setLowPrice(double lowPrice) {
         this.lowPrice = lowPrice;
     }
+
+    public double getOpenPrice() {
+        return openPrice;
+    }
+
+    public void setOpenPrice(double openPrice) {
+        this.openPrice = openPrice;
+    }
 }
