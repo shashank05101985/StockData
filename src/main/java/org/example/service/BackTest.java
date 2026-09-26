@@ -33,8 +33,8 @@ public class BackTest {
     static double totalCapital = 150000;
     static double CAPITAL_PER_TRADE = 30000.0;
     static int canleCount = 5;
-    static int prevDay = 3;
-    static int currentDay = 2;
+    static int prevDay = 2;
+    static int currentDay = 1;
 
     static void main() throws SQLException {
         backTest();
@@ -243,12 +243,12 @@ public class BackTest {
 
             candle.setPercentageChange(percentageChange);
             candle.setLastDayHigh(stockLastDayHigh);
-            if (candle.getEma9() > candle.getVwap() && stockPrice > candle.getEma9() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500) &&  candle.getCumulativeVolume() > 100000) {
+            if (candle.getEma9() > candle.getVwap() && stockPrice > candle.getEma9() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500)) {
                 //System.out.println(symbol + " " + candle.toString());
                 //results.add(Map.entry(symbol, candle));
                 boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins, canleCount);
-
-                if (continuouslyIncreasing) {
+                boolean voluemeIncreasing = isVolumeContinuouslyIncreasing(candleNMins, canleCount);
+                if (continuouslyIncreasing && voluemeIncreasing) {
                     results.add(
                             Map.entry(symbol, candle)
                     );
@@ -524,6 +524,27 @@ public class BackTest {
             double currentPrice = candles.get(i).getClose();
 
             if (currentPrice <= previousPrice) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean isVolumeContinuouslyIncreasing(List<CandleNMin> candles, int numberOfCandles) {
+
+        if (candles == null || candles.size() < numberOfCandles) {
+            return false;
+        }
+
+        int startIndex = candles.size() - numberOfCandles;
+
+        for (int i = startIndex + 1; i < candles.size(); i++) {
+
+            double prevVolume = candles.get(i - 1).getVolume();
+            double currentVolume = candles.get(i).getVolume();
+
+            if (currentVolume <= prevVolume) {
                 return false;
             }
         }
