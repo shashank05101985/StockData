@@ -33,8 +33,8 @@ public class BackTest {
     static double totalCapital = 150000;
     static double CAPITAL_PER_TRADE = 30000.0;
     static int canleCount = 5;
-    static int prevDay = 2;
-    static int currentDay = 1;
+    static int prevDay = 3;
+    static int currentDay = 2;
 
     static void main() throws SQLException {
         backTest();
@@ -81,6 +81,10 @@ public class BackTest {
             try {
 
                 if (endTime.isAfter(today.minusDays(currentDay).atTime(14, 30))) {
+                    System.out.println(
+                            "TOTAL REALIZED P&L = "
+                                    + String.format("%.2f", totalProfit)
+                    );
                     if (openPositions.isEmpty()) {
                         System.out.println("No open positions.");
                         System.out.println("================================");
@@ -114,10 +118,6 @@ public class BackTest {
                     System.out.println(
                             "TOTAL UNREALIZED P&L = "
                                     + String.format("%.2f", totalUnrealizedProfit)
-                    );
-                    System.out.println(
-                            "TOTAL REALIZED P&L = "
-                                    + String.format("%.2f", totalProfit)
                     );
                     System.exit(0);
                 }
