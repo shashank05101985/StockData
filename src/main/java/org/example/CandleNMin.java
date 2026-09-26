@@ -22,6 +22,8 @@ public class CandleNMin {
     private double cumulativeVolume;
     private double percentageChange;
     private double lastDayHigh;
+    private double atr;
+
 
     public CandleNMin() {
     }
@@ -176,11 +178,19 @@ public class CandleNMin {
         this.symbol = symbol;
     }
 
+    public double getAtr() {
+        return atr;
+    }
+
+    public void setAtr(double atr) {
+        this.atr = atr;
+    }
+
     @Override
     public String toString() {
         return "Candle5Min{" +
                 "time=" + time +
-                "symbol=" + symbol +
+                ", symbol=" + symbol +
                 ", open=" + open +
                 ", high=" + high +
                 ", low=" + low +
@@ -188,6 +198,7 @@ public class CandleNMin {
                 ", volume=" + volume +
                 ", ema9=" + ema9 +
                 ", vwap=" + vwap +
+                ", ATR=" + atr +
                 ", buyQty=" + buyQty +
                 ", sellQty=" + sellQty +
                 ", buySellRatio=" + buySellRatio +
