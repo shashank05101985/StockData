@@ -6,14 +6,16 @@ public class PreviousDayData {
     double highPrice;
     double deliveryPct;
     double lowPrice;
+    double openPrice;
 
 
-    public PreviousDayData(double closePrice, long tradedQty,double highPrice,double deliveryPct,double lowPrice) {
+    public PreviousDayData(double closePrice, long tradedQty,double highPrice,double deliveryPct,double lowPrice,double openPrice) {
         this.closePrice = closePrice;
         this.tradedQty = tradedQty;
         this.highPrice = highPrice;
         this.deliveryPct = deliveryPct;
         this.lowPrice = lowPrice;
+        this.openPrice = openPrice;
     }
 
     public double getClosePrice() {
