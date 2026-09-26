@@ -33,6 +33,8 @@ public class BackTest {
     static double totalCapital = 150000;
     static double CAPITAL_PER_TRADE = 30000.0;
     static int canleCount = 5;
+    static int prevDay = 3;
+    static int currentDay = 2;
 
     static void main() throws SQLException {
         backTest();
@@ -46,14 +48,14 @@ public class BackTest {
         Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
         Map<String, PreviousDayData> previousDayDataMap =
                 StockDailyFeatureRepository.loadPreviousDayClose(
-                        today.minusDays(2),
+                        today.minusDays(prevDay),
                         DB.get(),
                         1
                 );
         ConcurrentHashMap<String, Deque<MinuteCandle>> fullHistory =
                 DataLoader.loadMinuteHistory(
                         DB.get(),
-                        today.minusDays(1),
+                        today.minusDays(currentDay),
                         // Previous day
                         // Today
                         LocalTime.of(9, 15),
@@ -62,8 +64,8 @@ public class BackTest {
         Map<LocalDateTime, List<MinuteCandle>> minuteHistoryBasedOnTime =
                 DataLoader.loadMinuteHistoryBasedOnTime(
                         DB.get(),
-                        today.minusDays(2),
-                        today.minusDays(1),
+                        today.minusDays(prevDay),
+                        today.minusDays(currentDay),
                         // Previous day
                         LocalTime.of(14, 30),
                         LocalTime.of(15, 30),
@@ -72,13 +74,13 @@ public class BackTest {
                         LocalTime.of(9, 15),
                         LocalTime.of(15, 15)
                 );
-        LocalDateTime startTime = today.minusDays(2).atTime(14, 30);
-        LocalDateTime endTime = today.minusDays(1).atTime(9, 18);
+        LocalDateTime startTime = today.minusDays(prevDay).atTime(14, 30);
+        LocalDateTime endTime = today.minusDays(currentDay).atTime(9, 18);
 
         while (true) {
             try {
 
-                if (endTime.isAfter(today.minusDays(1).atTime(14, 30))) {
+                if (endTime.isAfter(today.minusDays(currentDay).atTime(14, 30))) {
                     if (openPositions.isEmpty()) {
                         System.out.println("No open positions.");
                         System.out.println("================================");
