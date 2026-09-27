@@ -10,7 +10,6 @@ import org.example.model.PreviousDayData;
 import org.example.model.StockDailyFeature;
 import org.example.repository.StockDailyFeatureRepository;
 
-import java.lang.annotation.Target;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 
@@ -32,9 +30,9 @@ public class BackTest {
     static double totalProfit = 0;
     static double totalCapital = 200000;
     static double CAPITAL_PER_TRADE = 50000.0;
-    static int canleCount = 3;
-    static int prevDay = 3;
-    static int currentDay = 2;
+    static int candleCount = 3;
+    static int prevDay = 5;
+    static int currentDay = 4;
 
     static void main() throws SQLException {
         backTest();
@@ -46,6 +44,7 @@ public class BackTest {
                 Executors.newScheduledThreadPool(1);
         LocalDate today = LocalDate.now();
         Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
+        Set<String> potentialCandidates = StockDailyFeatureRepository.findCandidateSymbols(today.minusDays(prevDay));
         Map<String, PreviousDayData> previousDayDataMap =
                 StockDailyFeatureRepository.loadPreviousDayClose(
                         today.minusDays(prevDay),
@@ -136,11 +135,12 @@ public class BackTest {
                         fundamentalDataMap,
                         minuteHistory,
                         1.5,
-                        endTime
+                        endTime,
+                        potentialCandidates
                 );
 
                 // Next execution: +3 minutes
-                endTime = endTime.plusMinutes(canleCount);
+                endTime = endTime.plusMinutes(candleCount);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -180,7 +180,7 @@ public class BackTest {
         return result;
     }
 
-    public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, Map<String, List<MinuteCandle>> minuteHistory, double maxStopLossPercent, LocalDateTime endTime) {
+    public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, Map<String, List<MinuteCandle>> minuteHistory, double maxStopLossPercent, LocalDateTime endTime, Set<String> potentialCandidates) {
 
         List<Map.Entry<String, CandleNMin>> results = new ArrayList<>();
 
@@ -195,7 +195,7 @@ public class BackTest {
             MinuteCandle minuteCandle = candles.getFirst();
             double firstMinAvg = (minuteCandle.getOpen()+minuteCandle.getHigh()+minuteCandle.getLow()+minuteCandle.getClose()) / 4;
             double ema = (previousDayAvgPrice + firstMinAvg) / 2;
-            List<CandleNMin> candleNMins = calculateTimeBasedEmaVwapAndAtr(candles, canleCount, 10, ema);
+            List<CandleNMin> candleNMins = calculateTimeBasedEmaVwapAndAtr(candles, candleCount, 10, ema);
             //print5MinCandles(candles5mins);
             CandleNMin candle = candleNMins.getLast();
             double stockPrice = candle.getClose();
@@ -248,11 +248,11 @@ public class BackTest {
             candle.setPercentageChange(percentageChange);
             candle.setLastDayHigh(stockLastDayHigh);
 
-            if (candle.getEma20() > candle.getVwap() && stockPrice > candle.getEma20() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500)) {
+            if (potentialCandidates.contains(symbol) && candle.getEma20() > candle.getVwap() && stockPrice > candle.getEma20() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500)) {
                 //System.out.println(symbol + " " + candle.toString());
                 //results.add(Map.entry(symbol, candle));
-                boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins, canleCount);
-                boolean voluemeIncreasing = isVolumeContinuouslyIncreasing(candleNMins, canleCount);
+                boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins, candleCount);
+                boolean voluemeIncreasing = isVolumeContinuouslyIncreasing(candleNMins, candleCount);
                 if (continuouslyIncreasing) {
                     results.add(
                             Map.entry(symbol, candle)

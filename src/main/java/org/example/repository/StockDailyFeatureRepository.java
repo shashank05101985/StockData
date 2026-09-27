@@ -10,10 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class StockDailyFeatureRepository {
@@ -410,5 +407,56 @@ public class StockDailyFeatureRepository {
 
     public static PreviousDayData getPreviosData(String symbol) {
         return previousDayMap.get(symbol);
+    }
+
+    public static Set<String> findCandidateSymbols(LocalDate tradeDate) {
+        String sql = """
+        SELECT symbol
+        FROM stock_daily_features
+        WHERE trade_date = ?
+
+          -- 1. Quality & Liquidity Filters
+          AND close_price >= 500
+          AND volume >= 250000
+          AND atr_percent BETWEEN 2.5 AND 15.0
+
+          -- 2. Institutional Footprint
+          AND volume_ratio20 >= 1.5
+
+          -- 3. Core Trend & Momentum
+          AND close_above_ema20 = TRUE
+          AND rsi14 >= 55
+
+          -- 4. Catalyst / Trigger Proximity
+          AND (
+              breakout_5d = TRUE
+              OR breakout_10d = TRUE
+              OR distance_to_resistance <= 2.0
+          )
+
+        ORDER BY
+            volume_ratio20 DESC,
+            rsi14 DESC
+        LIMIT 40
+        """;
+
+        Set<String> symbols = new HashSet<>();
+
+        try (PreparedStatement ps = DB.get().prepareStatement(sql)) {
+
+            ps.setDate(1, java.sql.Date.valueOf(tradeDate));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    symbols.add(rs.getString("symbol"));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Failed to load candidate symbols for date: " + tradeDate, e);
+        }
+
+        return symbols;
     }
 }
