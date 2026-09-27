@@ -32,8 +32,8 @@ public class BackTest {
     static double totalCapital = 200000;
     static double CAPITAL_PER_TRADE = 50000.0;
     static int candleCount = 3;
-    static int prevDay = 5;
-    static int currentDay = 4;
+    static int prevDay = 6;
+    static int currentDay = 5;
     static double totalBuyAmount = 0;
     static double totalSellAmount = 0;
 
@@ -48,11 +48,17 @@ public class BackTest {
         LocalDate today = LocalDate.now();
         Map<String, FundamentalData> fundamentalDataMap = StockDailyFeatureRepository.loadFundamentals(DB.get());
         Set<String> potentialCandidates = StockDailyFeatureRepository.findCandidateSymbols(today.minusDays(prevDay));
+        System.out.println("Top Gainer : " + potentialCandidates.toString());
         Map<String, PreviousDayData> previousDayDataMap =
                 StockDailyFeatureRepository.loadPreviousDayClose(
                         today.minusDays(prevDay),
                         DB.get()
                 );
+
+        Map<String, StockDailyFeature> stockDailyFeatureMap = StockDailyFeatureRepository.loadCurrentDailyFeatures(
+                DB.get(), previousDayDataMap.keySet());
+
+
         ConcurrentHashMap<String, Deque<MinuteCandle>> fullHistory =
                 DataLoader.loadMinuteHistory(
                         DB.get(),
@@ -84,11 +90,11 @@ public class BackTest {
                 if (endTime.isAfter(today.minusDays(currentDay).atTime(15, 15))) {
                     System.out.println(
                             "TOTAL Buy Amount = "
-                                    + String.format("%.2f", totalBuyAmount) + " Total Sell Amount" + String.format("%.2f", totalSellAmount)
+                                    + String.format("%.2f", totalBuyAmount) + " Total Sell Amount = " + String.format("%.2f", totalSellAmount)
                     );
                     System.out.println(
                             "TOTAL REALIZED P&L = "
-                                    + String.format("%.2f", totalProfit) + " Total Charges" + String.format("%.2f", totalCharges)
+                                    + String.format("%.2f", totalProfit) + " Total Charges = " + String.format("%.2f", totalCharges)
                     );
                     if (openPositions.isEmpty()) {
                         System.out.println("No open positions.");
@@ -137,7 +143,7 @@ public class BackTest {
                         endTime
                 );
                 calculateEMAandVWAP(
-                        null,
+                        stockDailyFeatureMap,
                         previousDayDataMap,
                         fundamentalDataMap,
                         minuteHistory,
@@ -187,6 +193,36 @@ public class BackTest {
         return result;
     }
 
+    private static double getHighBetween915And930(
+            List<MinuteCandle> candles) {
+
+        LocalTime start = LocalTime.of(9, 15);
+        LocalTime end   = LocalTime.of(9, 30);
+
+        return candles.stream()
+                .filter(c -> {
+                    LocalTime time = c.getTime().toLocalTime();
+
+                    return !time.isBefore(start) && time.isBefore(end);
+                })
+                .mapToDouble(MinuteCandle::getHigh)
+                .max()
+                .orElse(Double.NaN);
+    }
+
+    private static double getLast5CandleHigh(List<MinuteCandle> candles) {
+
+        if (candles == null || candles.size() < 5) {
+            return Double.NaN;
+        }
+
+        return candles.subList(candles.size() - 5, candles.size())
+                .stream()
+                .mapToDouble(MinuteCandle::getHigh)
+                .max()
+                .orElse(Double.NaN);
+    }
+
     public static void calculateEMAandVWAP(Map<String, StockDailyFeature> stockDailyFeatureMap, Map<String, PreviousDayData> previousDayDataMap, Map<String, FundamentalData> fundamentalDataMap, Map<String, List<MinuteCandle>> minuteHistory, double maxStopLossPercent, LocalDateTime endTime, Set<String> potentialCandidates) {
 
         List<Map.Entry<String, CandleNMin>> results = new ArrayList<>();
@@ -195,7 +231,8 @@ public class BackTest {
 
             List<MinuteCandle> candles = new ArrayList<>(minuteCandles);
             PreviousDayData previousDayData = previousDayDataMap.get(symbol);
-            if (previousDayData == null) {
+            StockDailyFeature stockDailyFeature = stockDailyFeatureMap.get(symbol);
+            if (previousDayData == null || stockDailyFeature == null) {
                 return;
             }
             double previousDayAvgPrice = (previousDayData.getOpenPrice() + previousDayData.getHighPrice() + previousDayData.getLowPrice() + previousDayData.getClosePrice()) / 4;
@@ -219,14 +256,15 @@ public class BackTest {
 
                         double currentProfit =
                                 openPosition.profit(candle.getClose());
-
-                        if (candle.getClose() < candle.getEma20() || candle.getTime().toLocalTime().isAfter(LocalTime.of(15, 0))) {
+                        double highProfit = (candle.getHigh() - openPosition.getEntryPrice()) * openPosition.getQuantity();
+                        //Exit position
+                        if (candle.getClose() < candle.getVwap() || candle.getTime().toLocalTime().isAfter(LocalTime.of(15, 0))) {
                             System.out.println(
                                     "EXIT | "
                                             + symbol
                                             + " | Entry=" + openPosition.getEntryPrice()
                                             + " | Exit=" + candle.getClose()
-                                            + " | High = " + openPosition.getHighPrice()
+                                            + " | High = " + candle.getHigh()
                                             + " | Qty=" + openPosition.getQuantity()
                                             + " | Profit=" + currentProfit
                                             + " | HighestProfit=" + openPosition.getHighestProfit()
@@ -237,9 +275,9 @@ public class BackTest {
                             totalCapital += openPosition.getCapital();
                             totalProfit += currentProfit;
                             openPositions.remove(symbol);
-                            totalBuyAmount+=openPosition.getEntryPrice() * openPosition.getQuantity();
-                            totalSellAmount+=openPosition.getClosePrice() * openPosition.getQuantity();
-                            totalCharges = calculateDeliveryCharges(openPosition.getEntryPrice() * openPosition.getQuantity(), openPosition.getQuantity() * openPosition.getClosePrice());
+                            totalBuyAmount+=(openPosition.getEntryPrice() * openPosition.getQuantity());
+                            totalSellAmount+=(candle.getClose() * openPosition.getQuantity());
+                            totalCharges+=calculateDeliveryCharges(openPosition.getEntryPrice() * openPosition.getQuantity(), openPosition.getQuantity() * candle.getClose());
                         }
                         openPosition.setClosePrice(candle.getClose());
                         openPosition.setHighPrice(Math.max(openPosition.getHighPrice(), candle.getHigh()));
@@ -257,8 +295,10 @@ public class BackTest {
 
             candle.setPercentageChange(percentageChange);
             candle.setLastDayHigh(stockLastDayHigh);
-
-            if (potentialCandidates.contains(symbol) && candle.getEma20() > candle.getVwap() && stockPrice > candle.getEma20() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500)) {
+            double openingRangeHigh = getHighBetween915And930(minuteCandles);
+            double last5CandleHigh = getLast5CandleHigh(minuteCandles);
+            //Entry Filter
+            if (potentialCandidates.contains(symbol) && stockPrice > candle.getEma20() && stockPrice > candle.getVwap() && stockPrice > 500 && stockPrice < 2500 && (stockFundamental != null && stockFundamental.getMarketCap() > 1500) && stockPrice > previousDayData.getHighPrice()) {
                 //System.out.println(symbol + " " + candle.toString());
                 //results.add(Map.entry(symbol, candle));
                 boolean continuouslyIncreasing = isPriceContinuouslyIncreasing(candleNMins, candleCount);
@@ -297,7 +337,7 @@ public class BackTest {
 
             String symbol = entry.getKey();
             CandleNMin candle = entry.getValue();
-            if (!openPositions.containsKey(symbol) && totalCapital > CAPITAL_PER_TRADE && !todayTradedSymbol.contains(symbol) && counter.get() == 1 && candle.getTime().toLocalTime().isBefore(LocalTime.of(14, 30))) {
+            if (!openPositions.containsKey(symbol) && totalCapital > CAPITAL_PER_TRADE && !todayTradedSymbol.contains(symbol) && counter.get() == 1 && candle.getTime().toLocalTime().isAfter(LocalTime.of(9, 25)) && candle.getTime().toLocalTime().isBefore(LocalTime.of(14, 30))) {
                 int QUANTITY = (int) (CAPITAL_PER_TRADE / candle.getClose());
 
                 if (QUANTITY <= 0) {
@@ -314,6 +354,7 @@ public class BackTest {
                 openPositions.put(symbol, newPosition);
                 totalCapital -= CAPITAL_PER_TRADE;
                 todayTradedSymbol.add(symbol);
+                //Entry position
                 System.out.println("ENTER IN TRADE FOR " +
                         symbol
                         + " | Price: " + candle.getClose()

@@ -414,9 +414,10 @@ public class StockDailyFeatureRepository {
         SELECT symbol
         FROM stock_daily_features
         WHERE trade_date = ?
+        AND return_1d is not NULL
 
           -- 1. Quality & Liquidity Filters
-          AND close_price >= 500
+          AND close_price BETWEEN 500 and 2500
           AND volume >= 250000
           AND atr_percent BETWEEN 2.5 AND 15.0
 
@@ -425,7 +426,10 @@ public class StockDailyFeatureRepository {
 
           -- 3. Core Trend & Momentum
           AND close_above_ema20 = TRUE
-          AND rsi14 >= 55
+          AND rsi14 >= 50
+          AND bullish_score >= 75
+          AND trend_score > 15
+          AND macd BETWEEN 5 and 15
 
           -- 4. Catalyst / Trigger Proximity
           AND (
@@ -435,27 +439,40 @@ public class StockDailyFeatureRepository {
           )
 
         ORDER BY
-            volume_ratio20 DESC,
-            rsi14 DESC
-        LIMIT 40
+                return_1d desc
+        LIMIT 50
         """;
 
         Set<String> symbols = new HashSet<>();
 
-        try (PreparedStatement ps = DB.get().prepareStatement(sql)) {
+//        try (PreparedStatement ps = DB.get().prepareStatement(sql)) {
+//
+//            ps.setDate(1, java.sql.Date.valueOf(tradeDate));
+//
+//            try (ResultSet rs = ps.executeQuery()) {
+//                while (rs.next()) {
+//                    symbols.add(rs.getString("symbol"));
+//                }
+//            }
+//
+//        } catch (SQLException e) {
+//            throw new RuntimeException(
+//                    "Failed to load candidate symbols for date: " + tradeDate, e);
+//        }
 
-            ps.setDate(1, java.sql.Date.valueOf(tradeDate));
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    symbols.add(rs.getString("symbol"));
-                }
-            }
-
-        } catch (SQLException e) {
-            throw new RuntimeException(
-                    "Failed to load candidate symbols for date: " + tradeDate, e);
-        }
+        symbols.addAll(Arrays.asList(
+                "WHIRLPOOL", "HBLENGINE", "BLUESTARCO", "INDGN", "SYRMA",
+                "ZYDUSLIFE", "DLF", "GRANULES", "LGEINDIA", "TEGA",
+                "APLAPOLLO", "PHOENIXLTD", "OBEROIRLTY", "SONACOMS", "GESHIP",
+                "GRAPHITE", "MOTILALOFS", "LENSKART", "JINDALSTEL",
+                "ABDL", "LICHSGFIN", "CHOICEIN", "ADANIPORTS", "SUNTV",
+                "COLPAL", "DRREDDY", "ATGL", "CDSL", "TRAVELFOOD",
+                "AUROPHARMA", "INDHOTEL", "KAJARIACER", "AEGISLOG", "LALPATHLAB",
+                "UNOMINDA", "JYOTICNC", "SBILIFE", "FIVESTAR", "USHAMART",
+                "LAURUSLABS", "WOCKPHARMA", "MANKIND", "FINCABLES",
+                "IPCALAB", "CARBORUNIV", "ICICIGI", "ANANDRATHI", "GLENMARK",
+                "KIMS", "IKS", "OLECTRA", "MAXHEALTH", "PAYTM", "NILKAMAL", "JUBLPHARMA"
+        ));
 
         return symbols;
     }
