@@ -28,6 +28,7 @@ public class BackTest {
     static Map<String, PotentialScanner.Position> openPositions = new HashMap<>();
     static Set<String> todayTradedSymbol = new HashSet<>();
     static double totalProfit = 0;
+    static double totalCharges = 0;
     static double totalCapital = 200000;
     static double CAPITAL_PER_TRADE = 50000.0;
     static int candleCount = 3;
@@ -81,7 +82,7 @@ public class BackTest {
                 if (endTime.isAfter(today.minusDays(currentDay).atTime(15, 15))) {
                     System.out.println(
                             "TOTAL REALIZED P&L = "
-                                    + String.format("%.2f", totalProfit)
+                                    + String.format("%.2f", totalProfit) + " Total Charges" + String.format("%.2f", totalCharges)
                     );
                     if (openPositions.isEmpty()) {
                         System.out.println("No open positions.");
@@ -193,7 +194,7 @@ public class BackTest {
             }
             double previousDayAvgPrice = (previousDayData.getOpenPrice() + previousDayData.getHighPrice() + previousDayData.getLowPrice() + previousDayData.getClosePrice()) / 4;
             MinuteCandle minuteCandle = candles.getFirst();
-            double firstMinAvg = (minuteCandle.getOpen()+minuteCandle.getHigh()+minuteCandle.getLow()+minuteCandle.getClose()) / 4;
+            double firstMinAvg = (minuteCandle.getOpen() + minuteCandle.getHigh() + minuteCandle.getLow() + minuteCandle.getClose()) / 4;
             double ema = (previousDayAvgPrice + firstMinAvg) / 2;
             List<CandleNMin> candleNMins = calculateTimeBasedEmaVwapAndAtr(candles, candleCount, 10, ema);
             //print5MinCandles(candles5mins);
@@ -213,7 +214,7 @@ public class BackTest {
                         double currentProfit =
                                 openPosition.profit(candle.getHigh());
 
-                        if (candle.getClose() < candle.getEma20() || candle.getTime().toLocalTime().isAfter(LocalTime.of(15,0))) {
+                        if (candle.getClose() < candle.getEma20() || candle.getTime().toLocalTime().isAfter(LocalTime.of(15, 0))) {
                             System.out.println(
                                     "EXIT | "
                                             + symbol
@@ -230,6 +231,7 @@ public class BackTest {
                             totalCapital += openPosition.getCapital();
                             totalProfit += currentProfit;
                             openPositions.remove(symbol);
+                            totalCharges = calculateDeliveryCharges(openPosition.getEntryPrice() * openPosition.getQuantity(), openPosition.getQuantity() * openPosition.getClosePrice());
                         }
                         openPosition.setClosePrice(candle.getClose());
                         openPosition.setHighPrice(Math.max(openPosition.getHighPrice(), candle.getHigh()));
@@ -287,7 +289,7 @@ public class BackTest {
 
             String symbol = entry.getKey();
             CandleNMin candle = entry.getValue();
-            if (!openPositions.containsKey(symbol) && totalCapital > CAPITAL_PER_TRADE && !todayTradedSymbol.contains(symbol) && counter.get() == 1 && candle.getTime().toLocalTime().isBefore(LocalTime.of(14,30))) {
+            if (!openPositions.containsKey(symbol) && totalCapital > CAPITAL_PER_TRADE && !todayTradedSymbol.contains(symbol) && counter.get() == 1 && candle.getTime().toLocalTime().isBefore(LocalTime.of(14, 30))) {
                 int QUANTITY = (int) (CAPITAL_PER_TRADE / candle.getClose());
 
                 if (QUANTITY <= 0) {
@@ -304,15 +306,15 @@ public class BackTest {
                 openPositions.put(symbol, newPosition);
                 totalCapital -= CAPITAL_PER_TRADE;
                 todayTradedSymbol.add(symbol);
-                System.out.println( "ENTER IN TRADE FOR " +
+                System.out.println("ENTER IN TRADE FOR " +
                         symbol
-                                + " | Price: " + candle.getClose()
-                                + " | Qty: " + newPosition.getQuantity()
-                                + " | EMA9: " + candle.getEma9()
-                                + " | EMA20: " + candle.getEma20()
-                                + " | VWAP: " + candle.getVwap()
-                                + " | Volume: " + candle.getCumulativeVolume()
-                                + " | REMANING CAPITAL : " + totalCapital
+                        + " | Price: " + candle.getClose()
+                        + " | Qty: " + newPosition.getQuantity()
+                        + " | EMA9: " + candle.getEma9()
+                        + " | EMA20: " + candle.getEma20()
+                        + " | VWAP: " + candle.getVwap()
+                        + " | Volume: " + candle.getCumulativeVolume()
+                        + " | REMANING CAPITAL : " + totalCapital
                 );
             }
             counter.getAndIncrement();
@@ -416,13 +418,13 @@ public class BackTest {
             if (ema9 == 0.0) {
                 ema9 = ema;
             } else {
-                ema9 = (close * alpha)+ (ema9 * (1.0 - alpha));
+                ema9 = (close * alpha) + (ema9 * (1.0 - alpha));
             }
 
             if (ema20 == 0.0) {
                 ema20 = ema;
             } else {
-                ema20 = (close * alpha20)+ (ema20 * (1.0 - alpha20));
+                ema20 = (close * alpha20) + (ema20 * (1.0 - alpha20));
             }
 
             // --------------------------------------------------
@@ -569,5 +571,68 @@ public class BackTest {
         }
 
         return true;
+    }
+
+    public static double calculateDeliveryCharges(
+            double buyAmount,
+            double sellAmount) {
+
+        // ---------------------------------------
+        // Brokerage
+        // ---------------------------------------
+        // Zerodha equity delivery brokerage = 0
+        double brokerage = 0.0;
+
+        // ---------------------------------------
+        // STT
+        // Equity delivery: 0.1% on BUY
+        //                  0.1% on SELL
+        // ---------------------------------------
+        double sttBuy = buyAmount * 0.001;
+        double sttSell = sellAmount * 0.001;
+
+        double stt = sttBuy + sttSell;
+
+        // ---------------------------------------
+        // Exchange Transaction Charges
+        // NSE equity = 0.00297%
+        // ---------------------------------------
+        double exchangeCharges =
+                (buyAmount + sellAmount) * 0.0000297;
+
+        // ---------------------------------------
+        // SEBI charges
+        // ₹10 per crore = 0.0001%
+        // ---------------------------------------
+        double sebiCharges =
+                (buyAmount + sellAmount) * 0.000001;
+
+        // ---------------------------------------
+        // Stamp Duty
+        // Equity delivery:
+        // 0.015% on BUY side
+        // ---------------------------------------
+        double stampDuty =
+                buyAmount * 0.00015;
+
+        // ---------------------------------------
+        // GST
+        // 18% on brokerage + exchange charges
+        // + SEBI charges
+        // ---------------------------------------
+        double gst =
+                (brokerage
+                        + exchangeCharges
+                        + sebiCharges) * 0.18;
+
+        // ---------------------------------------
+        // Total charges
+        // ---------------------------------------
+        return stt
+                + exchangeCharges
+                + sebiCharges
+                + stampDuty
+                + gst
+                + brokerage;
     }
 }
