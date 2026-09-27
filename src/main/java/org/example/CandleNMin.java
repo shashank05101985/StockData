@@ -23,6 +23,7 @@ public class CandleNMin {
     private double percentageChange;
     private double lastDayHigh;
     private double atr;
+    private double ema20;
 
 
     public CandleNMin() {
@@ -41,7 +42,8 @@ public class CandleNMin {
             double buyQty,
             double sellQty,
             double buySellRatio,
-            double cumulativeVolume) {
+            double cumulativeVolume,
+            double ema20) {
 
         this.time = time;
         this.symbol = symbol;
@@ -56,6 +58,7 @@ public class CandleNMin {
         this.sellQty = sellQty;
         this.buySellRatio = buySellRatio;
         this.cumulativeVolume = cumulativeVolume;
+        this.ema20 = ema20;
     }
 
     public LocalDateTime getTime() {
@@ -186,6 +189,14 @@ public class CandleNMin {
         this.atr = atr;
     }
 
+    public double getEma20() {
+        return ema20;
+    }
+
+    public void setEma20(double ema20) {
+        this.ema20 = ema20;
+    }
+
     @Override
     public String toString() {
         return "Candle5Min{" +
@@ -203,6 +214,7 @@ public class CandleNMin {
                 ", sellQty=" + sellQty +
                 ", buySellRatio=" + buySellRatio +
                 ", cumulativeVolume=" + cumulativeVolume +
+                ", ema20=" + ema20 +
                 '}';
     }
 }
