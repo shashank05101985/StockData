@@ -34,6 +34,8 @@ public class BackTest {
     static int candleCount = 3;
     static int prevDay = 5;
     static int currentDay = 4;
+    static double totalBuyAmount = 0;
+    static double totalSellAmount = 0;
 
     static void main() throws SQLException {
         backTest();
@@ -80,6 +82,10 @@ public class BackTest {
             try {
 
                 if (endTime.isAfter(today.minusDays(currentDay).atTime(15, 15))) {
+                    System.out.println(
+                            "TOTAL Buy Amount = "
+                                    + String.format("%.2f", totalBuyAmount) + " Total Sell Amount" + String.format("%.2f", totalSellAmount)
+                    );
                     System.out.println(
                             "TOTAL REALIZED P&L = "
                                     + String.format("%.2f", totalProfit) + " Total Charges" + String.format("%.2f", totalCharges)
@@ -212,7 +218,7 @@ public class BackTest {
                     if (candle.getTime().isAfter(openPosition.getEntryTime())) {
 
                         double currentProfit =
-                                openPosition.profit(candle.getHigh());
+                                openPosition.profit(candle.getClose());
 
                         if (candle.getClose() < candle.getEma20() || candle.getTime().toLocalTime().isAfter(LocalTime.of(15, 0))) {
                             System.out.println(
@@ -231,6 +237,8 @@ public class BackTest {
                             totalCapital += openPosition.getCapital();
                             totalProfit += currentProfit;
                             openPositions.remove(symbol);
+                            totalBuyAmount+=openPosition.getEntryPrice() * openPosition.getQuantity();
+                            totalSellAmount+=openPosition.getClosePrice() * openPosition.getQuantity();
                             totalCharges = calculateDeliveryCharges(openPosition.getEntryPrice() * openPosition.getQuantity(), openPosition.getQuantity() * openPosition.getClosePrice());
                         }
                         openPosition.setClosePrice(candle.getClose());
