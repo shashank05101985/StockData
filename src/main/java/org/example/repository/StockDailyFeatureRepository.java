@@ -177,6 +177,153 @@ public class StockDailyFeatureRepository {
 
         return result;
     }
+    public static Map<String, StockDailyFeature> loadCurrentDailyFeaturesForDate(Connection connection,LocalDate date ) throws SQLException {
+
+        Map<String, StockDailyFeature> result = new HashMap<>();
+
+
+       // String placeholders = String.join(",", Collections.nCopies(symbols.size(), "?"));
+
+        String sql = """
+            SELECT DISTINCT ON (symbol)
+                   symbol,
+                   trade_date,
+                   close_price,
+                   sma20,
+                   sma50,
+                   sma100,
+                   sma200,
+                   ema9,
+                   ema20,
+                   ema50,
+                   ema100,
+                   ema200,
+                   close_above_ema20,
+                   ema20_above_ema50,
+                   ema50_above_ema200,
+                   rsi14,
+                   atr14,
+                   atr_percent,
+                   avg_volume5,
+                   avg_volume20,
+                   volume_ratio5,
+                   volume_ratio20,
+                   high_5d,
+                   high_10d,
+                   high_20d,
+                   distance_from_5d_high,
+                   distance_from_20d_high,
+                   breakout_5d,
+                   breakout_10d,
+                   breakout_20d,
+                   consolidation_width,
+                   consolidation_score,
+                   breakout_strength,
+                   trend_score,
+                   momentum_score,
+                   volume_score,
+                   bullish_score,
+                   market_bias,
+                    resistance_price,
+                    support_price,
+                    resistance_strength,
+                    support_strength,
+                    distance_to_resistance,
+                    distance_to_support
+            FROM stock_daily_features
+            WHERE trade_date = ?
+            ORDER BY symbol
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+
+            ps.setDate(1, java.sql.Date.valueOf(date));
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+
+                    StockDailyFeature data = new StockDailyFeature();
+
+                    data.setSymbol(rs.getString("symbol"));
+                    data.setTradeDate(rs.getDate("trade_date").toLocalDate());
+
+                    data.setClose(rs.getDouble("close_price"));
+
+                    data.setSma20(rs.getDouble("sma20"));
+                    data.setSma50(rs.getDouble("sma50"));
+                    data.setSma100(rs.getDouble("sma100"));
+                    data.setSma200(rs.getDouble("sma200"));
+
+                    data.setEma9(rs.getDouble("ema9"));
+                    data.setEma20(rs.getDouble("ema20"));
+                    data.setEma50(rs.getDouble("ema50"));
+                    data.setEma100(rs.getDouble("ema100"));
+                    data.setEma200(rs.getDouble("ema200"));
+
+                    data.setCloseAboveEma20(rs.getBoolean("close_above_ema20"));
+
+                    data.setEma20AboveEma50(rs.getBoolean("ema20_above_ema50"));
+
+                    data.setEma50AboveEma200(rs.getBoolean("ema50_above_ema200"));
+
+                    data.setRsi14(rs.getDouble("rsi14"));
+
+                    data.setAtr14(rs.getDouble("atr14"));
+                    data.setAtrPercent(rs.getDouble("atr_percent"));
+
+                    data.setAvgVolume5(rs.getDouble("avg_volume5"));
+                    data.setAvgVolume20(rs.getDouble("avg_volume20"));
+
+                    data.setVolumeRatio5(rs.getDouble("volume_ratio5"));
+
+                    data.setVolumeRatio20(rs.getDouble("volume_ratio20"));
+
+                    data.setHigh5d(rs.getDouble("high_5d"));
+                    data.setHigh10d(rs.getDouble("high_10d"));
+                    data.setHigh20d(rs.getDouble("high_20d"));
+
+                    data.setDistanceFrom5dHigh(rs.getDouble("distance_from_5d_high"));
+
+                    data.setDistanceFrom20dHigh(rs.getDouble("distance_from_20d_high"));
+
+                    data.setBreakout5d(rs.getBoolean("breakout_5d"));
+
+                    data.setBreakout10d(rs.getBoolean("breakout_10d"));
+
+                    data.setBreakout20d(rs.getBoolean("breakout_20d"));
+
+                    data.setConsolidationWidth(rs.getDouble("consolidation_width"));
+
+                    data.setConsolidationScore(rs.getDouble("consolidation_score"));
+
+                    data.setBreakoutStrength(rs.getDouble("breakout_strength"));
+
+                    data.setTrendScore(rs.getDouble("trend_score"));
+
+                    data.setMomentumScore(rs.getDouble("momentum_score"));
+
+                    data.setVolumeScore(rs.getDouble("volume_score"));
+
+                    data.setBullishScore(rs.getDouble("bullish_score"));
+
+                    data.setMarketBias(rs.getString("market_bias"));
+                    data.setResistancePrice(rs.getDouble("resistance_price"));
+                    data.setSupportPrice(rs.getDouble("support_price"));
+                    data.setResistanceStrength(rs.getDouble("resistance_strength"));
+                    data.setSupportStrength(rs.getDouble("support_strength"));
+                    data.setDistanceToSupport(rs.getDouble("distance_to_support"));
+                    data.setDistanceToResistance(rs.getDouble("distance_to_resistance"));
+
+
+                    result.put(data.getSymbol(), data);
+                }
+            }
+            connection.commit();
+        }
+
+        return result;
+    }
 
     public static Map<String, FundamentalData> loadFundamentals(Connection conn) throws SQLException {
 
@@ -474,6 +621,98 @@ public class StockDailyFeatureRepository {
                 "KIMS", "IKS", "OLECTRA", "MAXHEALTH", "PAYTM", "NILKAMAL", "JUBLPHARMA"
         ));
 
+        return symbols;
+    }
+
+    public static Set<String> findPotentialCandidateSymbols(LocalDate tradeDate) {
+        String sql = """
+                WITH candidates AS (
+                            SELECT
+                                symbol,
+                                trade_date,
+                                close_price,
+                                ema20,
+                                ema50,
+                                rsi14,
+                                avg_volume5,
+                                avg_volume20,
+                                volume_ratio5,
+                                distance_to_previous5d_high,
+                                relative_strength_5d,
+                                consolidation_width,
+                                bullish_score,
+                
+                                (
+                                    CASE
+                                        WHEN volume_ratio5 >= 2.0 THEN 20
+                                        WHEN volume_ratio5 >= 1.5 THEN 15
+                                        ELSE 0
+                                    END
+                                    +
+                                    CASE
+                                        WHEN relative_strength_5d >= 3 THEN 20
+                                        WHEN relative_strength_5d >= 1 THEN 10
+                                        WHEN relative_strength_5d > 0 THEN 5
+                                        ELSE 0
+                                    END
+                                    +
+                                    CASE
+                                        WHEN distance_to_previous5d_high
+                                             BETWEEN -2 AND 0 THEN 20
+                                        WHEN distance_to_previous5d_high
+                                             BETWEEN -5 AND 0 THEN 10
+                                        ELSE 0
+                                    END
+                                    +
+                                    CASE
+                                        WHEN close_price > ema20
+                                         AND ema20 > ema50 THEN 15
+                                        ELSE 0
+                                    END
+                                    +
+                                    CASE
+                                        WHEN rsi14 BETWEEN 50 AND 65 THEN 10
+                                        ELSE 0
+                                    END
+                                    +
+                                    CASE
+                                        WHEN consolidation_width BETWEEN 0 AND 8 THEN 15
+                                        ELSE 0
+                                    END
+                                ) AS trade_setup_score
+                
+                            FROM stock_daily_features
+                            WHERE trade_date =  ?
+                              AND close_price > 100
+                              AND close_price > ema20
+                              AND ema20 > ema50
+                              AND rsi14 BETWEEN 40 AND 70
+                              AND relative_strength_5d > 0
+                              AND volume_ratio5 >= 1.5
+                              AND avg_volume20 > 0
+                        )
+                        SELECT *
+                        FROM candidates
+                        ORDER BY trade_setup_score DESC, bullish_score DESC
+                        LIMIT 30;
+        """;
+
+        Set<String> symbols = new HashSet<>();
+
+        try (PreparedStatement ps = DB.get().prepareStatement(sql)) {
+
+            ps.setDate(1, java.sql.Date.valueOf(tradeDate));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    symbols.add(rs.getString("symbol"));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Failed to load candidate symbols for date: " + tradeDate, e);
+        }
         return symbols;
     }
 }

@@ -24,6 +24,12 @@ public class CandleNMin {
     private double lastDayHigh;
     private double atr;
     private double ema20;
+    private double ema21;
+    private double ema44;
+
+    private double distanceToResistance;
+    private double distanceToSupport ;
+
 
 
     public CandleNMin() {
@@ -59,6 +65,22 @@ public class CandleNMin {
         this.buySellRatio = buySellRatio;
         this.cumulativeVolume = cumulativeVolume;
         this.ema20 = ema20;
+    }
+
+    public double getDistanceToResistance() {
+        return distanceToResistance;
+    }
+
+    public void setDistanceToResistance(double distanceToResistance) {
+        this.distanceToResistance = distanceToResistance;
+    }
+
+    public double getDistanceToSupport() {
+        return distanceToSupport;
+    }
+
+    public void setDistanceToSupport(double distanceToSupport) {
+        this.distanceToSupport = distanceToSupport;
     }
 
     public LocalDateTime getTime() {
@@ -195,6 +217,22 @@ public class CandleNMin {
 
     public void setEma20(double ema20) {
         this.ema20 = ema20;
+    }
+
+    public double getEma21() {
+        return ema21;
+    }
+
+    public void setEma21(double ema21) {
+        this.ema21 = ema21;
+    }
+
+    public double getEma44() {
+        return ema44;
+    }
+
+    public void setEma44(double ema44) {
+        this.ema44 = ema44;
     }
 
     @Override
